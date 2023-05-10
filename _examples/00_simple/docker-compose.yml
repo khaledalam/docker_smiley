@@ -1,0 +1,9 @@
+services:
+  00_simple:
+    container_name: 00_simple
+    image: 'node:19-bullseye'
+    env_file:
+      - ./Docker/api/api.env
+    environment:
+      - NODE_ENV=production
+    command: "tail -f /dev/null"

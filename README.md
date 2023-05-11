@@ -8,7 +8,7 @@ Docker_Smiley
 
 ---
 
-Docker_smiley is a small application with a web based interface to reverse engineering Docker containers' environment variables precedence and monitor Docker containers' processes and logs in real time.
+Docker_Smiley is a small application with a web based interface to reverse engineering Docker containers' environment variables precedence and monitor Docker containers' processes and logs in real time.
 
 Written in [Go](https://github.com/golang/go) and [React](https://github.com/facebook/react).
 
@@ -33,15 +33,16 @@ Written in [Go](https://github.com/golang/go) and [React](https://github.com/fac
   - [ ] struct subRows levels in horizontal orientation
   - [ ] cache table builtin functionalities [e.g. # of rows] and fix search in subRows
   - [ ] tooltip each level explanation
-  - [ ] Add exporting functionality
   - [ ] TBD
 - [ ] Processes 
   - [ ] TBD
 - [ ] Logs
+  - [ ] struct subRows in better UI 
   - [ ] TBD
 ---
 
 - [ ] General
+  - [ ] use redux
   - [ ] readme.md 
   - [ ] github actions
   - [ ] basic auth
@@ -58,10 +59,10 @@ Written in [Go](https://github.com/golang/go) and [React](https://github.com/fac
 ---
 
 frontend:
-`npm run start` or `yarn run start` <br >
+`npm run start` or `yarn run start` <br/>
 http://localhost:3000/
 
 backend:
-`GIN_PORT=8010 gin run main.go`<br>
+`GIN_PORT=8010 gin run main.go`<br/>
 http://localhost:8010/
 

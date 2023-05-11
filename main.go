@@ -6,6 +6,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gorilla/websocket"
 	"github.com/samber/lo"
+	"io"
 	"log"
 	"main/entity"
 	"os"
@@ -36,13 +38,15 @@ func getEnvStringParts(env string) (string, string) {
 
 func getEnvLevels(container types.Container, pair types.PluginEnv) entity.LevelsList {
 
-	level1Value := ""
-	level2Value := ""
-	level3Value := ""
-	level4Value := ""
-	level5Value := ""
-	level6Value := ""
-	level7Value := ""
+	nilValue := "nil_value"
+
+	level1Value := nilValue
+	level2Value := nilValue
+	level3Value := nilValue
+	level4Value := nilValue
+	level5Value := nilValue
+	level6Value := nilValue
+	level7Value := nilValue
 
 	/*
 		Reverse engineering [Level 1] :
@@ -50,9 +54,8 @@ func getEnvLevels(container types.Container, pair types.PluginEnv) entity.Levels
 		''''''''''''''''''''''''''''''''''''''''''''''
 
 		1. Filter all running machine processes that contains container names or ID in its command using "ps" and "grep" commands.
-		2. Filter result of step(1) that containers "PluginEnv.Name=" in its command using strings.Contains.
+		2. Filter result of step(1) that contain substring "PluginEnv.Name=" in its command.
 	*/
-
 	// remove prefix "/"
 	grepArg := lo.Map(container.Names, func(name string, index int) string {
 		return strings.Replace(name, "/", "", 1)
@@ -75,6 +78,7 @@ func getEnvLevels(container types.Container, pair types.PluginEnv) entity.Levels
 
 					split := strings.Split(command, pair.Name+"=")
 					if len(split) >= 1 {
+						// @TODO: handle values that containers ("\"", "'", " ")
 						envVal := strings.Split(split[1], " ")
 						if len(envVal) >= 1 {
 							level1Value = envVal[0]
@@ -95,23 +99,32 @@ func getEnvLevels(container types.Container, pair types.PluginEnv) entity.Levels
 		2. Check if there is any line contains ${PluginEnv.Name}.
 		3. Get ${PluginEnv.Name} value from container shell. (empty string if var not set)
 	*/
-
 	file, err := os.Open(container.Labels["com.docker.compose.project.config_files"])
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}(file)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		if strings.Contains(scanner.Text(), "${"+pair.Name+"}") {
 			// get value from container shell
 
-			//fmt.Println("Yes > ", scanner.Text())
-
-			//echoCmd := exec.Command("docker exec -i " + container.ID + " /bin/sh -c  echo  $" + pair.Name)
+			//fmt.Println("Yes > ", pair.Name, scanner.Text())
+			//
+			//cmd := "docker exec -it " + container.ID + " echo ${" + pair.Name + "}"
+			//fmt.Println(cmd)
+			//echoCmd := exec.Command("/bin/sh", "-c", cmd)
 			//out, err := echoCmd.Output()
+			//fmt.Println(">>", string(out))
 			//if err != nil {
+			//	fmt.Println("err >>", err)
+			//
 			//	log.Fatal(err)
 			//} else {
 			//	fmt.Println(">>", string(out))
@@ -128,49 +141,49 @@ func getEnvLevels(container types.Container, pair types.PluginEnv) entity.Levels
 			LevelType:   entity.Level1,
 			LevelString: entity.Level1.String(),
 			Descriptor:  "Set using docker compose run -e in the CLI",
-			IsSet:       level1Value != "",
+			IsSet:       level1Value != nilValue,
 			Value:       level1Value,
 		},
 		entity.Level{
 			LevelType:   entity.Level2,
 			LevelString: entity.Level2.String(),
 			Descriptor:  "Substituted from your shell",
-			IsSet:       true,
+			IsSet:       level2Value != nilValue,
 			Value:       level2Value,
 		},
 		entity.Level{
 			LevelType:   entity.Level3,
 			LevelString: entity.Level3.String(),
 			Descriptor:  "Set using the environment attribute in the Compose file",
-			IsSet:       true,
+			IsSet:       level3Value != nilValue,
 			Value:       level3Value,
 		},
 		entity.Level{
 			LevelType:   entity.Level4,
 			LevelString: entity.Level4.String(),
 			Descriptor:  "Use of the --env-file argument in the CLI",
-			IsSet:       true,
+			IsSet:       level4Value != nilValue,
 			Value:       level4Value,
 		},
 		entity.Level{
 			LevelType:   entity.Level5,
 			LevelString: entity.Level5.String(),
 			Descriptor:  "Use of the env_file attribute in the Compose file",
-			IsSet:       true,
+			IsSet:       level5Value != nilValue,
 			Value:       level5Value,
 		},
 		entity.Level{
 			LevelType:   entity.Level6,
 			LevelString: entity.Level6.String(),
 			Descriptor:  "Set using an .env file placed at base of your project directory",
-			IsSet:       true,
+			IsSet:       level6Value != nilValue,
 			Value:       level6Value,
 		},
 		entity.Level{
 			LevelType:   entity.Level7,
 			LevelString: entity.Level7.String(),
 			Descriptor:  "Set in a container image in the ENV directive. Having any ARG or ENV setting in a Dockerfile evaluates only if there is no Docker Compose entry for environment, env_file or run --env.",
-			IsSet:       true,
+			IsSet:       level7Value != nilValue,
 			Value:       level7Value,
 		},
 	}
@@ -200,6 +213,42 @@ func getEnvsOfContainer(cli *client.Client, container types.Container) map[strin
 		}
 	}
 	return envs
+}
+
+func getContainerLogs(cli *client.Client, container types.Container) []entity.Log {
+	logsReader, err := cli.ContainerLogs(context.Background(), container.ID, types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: false,
+	})
+
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+
+	defer func(logsReader io.ReadCloser) {
+		_ = logsReader.Close()
+	}(logsReader)
+
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, logsReader)
+	if err != nil && err != io.EOF {
+		log.Fatal(err)
+		return nil
+	}
+
+	var logs []entity.Log
+
+	scanner := bufio.NewScanner(&buf)
+	for scanner.Scan() {
+		logs = append(logs, entity.Log{Line: scanner.Text()})
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	return logs
 }
 
 var upgrader = websocket.Upgrader{}
@@ -272,6 +321,7 @@ func main() {
 				LabelApp:      container_.Labels["com.docker.compose.project"],
 				ContainerJson: reader,
 				Processes:     []os.Process{},
+				Logs:          getContainerLogs(cli, container_),
 			}
 
 			containers = append(containers, container)
@@ -283,12 +333,6 @@ func main() {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 
 		fmt.Fprint(c.Writer, string(jsonRes))
-		//c.JSON(http.StatusOK, json.NewDecoder(c.Writer).Decode(&jsonRes))
-		//c.JSON(http.StatusOK, gin.H{"data": string(jsonRes)})
-
-		//c.JSON(http.StatusOK, gin.H{
-		//	"message": "pong",
-		//})
 	})
 
 	r.Run()

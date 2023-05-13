@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "ui_docker_smiley",
+  "name": "ui_docker_smiley",
   "icons": [
     {
       "src": "docker_smiley_logo.png",

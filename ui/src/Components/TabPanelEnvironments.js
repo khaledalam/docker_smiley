@@ -54,7 +54,7 @@ function TabPanelEnvironments() {
                   value: env?.Value,
                   subRows: env?.Levels.map((level, index) => {
                     return {
-                      name: level?.LevelString,
+                      name: level?.LevelString + ' (' + (level?.isSet ? '✅' : '✖️') + ")",
                       value: level.Value
                     }
                   })
@@ -124,6 +124,13 @@ function TabPanelEnvironments() {
               columns={envColumns}
               data={containersData}
               enableExpanding
+              muiTablePaginationProps={{
+                // rowsPerPage: "50",
+                // count: 100,
+                // rowsPerPageOptions: [50, 100, 200],
+                // showFirstButton: true,
+                // showLastButton: true,
+              }}
               getSubRows={(originalRow) => originalRow.subRows} //default, can customize
           />
   </>;

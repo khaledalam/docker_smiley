@@ -42,13 +42,13 @@ Written in [Go](https://github.com/golang/go) and [React](https://github.com/fac
 ---
 
 - [ ] General
-  - [ ] use redux
+  - [x] use redux
   - [ ] readme.md 
   - [ ] github actions
   - [ ] basic auth
   - [ ] documentation
   - [ ] testing
-  - [ ] dark mode
+  - [x] dark mode
   - [ ] containerize application
   - [ ] test on Linux and Windows environments (currently on mac only)
   - [ ] remove unused packages

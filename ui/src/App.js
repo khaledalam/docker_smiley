@@ -1,20 +1,22 @@
 import './App.css';
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { toast } from 'react-toastify';
+import {toast, ToastContainer} from 'react-toastify';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import 'react-tabs/style/react-tabs.css';
 import TabPanelEnvironments from "./Components/TabPanelEnvironments";
 import TabPanelLogs from "./Components/TabPanelLogs";
 import TabPanelProcesses from "./Components/TabPanelProcesses";
+import {useSelector} from "react-redux";
+import {appUpdateDarkMode} from "./store/actions";
+import store from "./store";
 
 
 function App() {
 
-  const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode'));
-
   const [message, setMessage] = useState('');
 
+  let {darkMode} = useSelector(state => state.App);
 
 
   useEffect(() => {
@@ -25,22 +27,24 @@ function App() {
 
 
   const handleToggleDarkMode = e => {
-    localStorage.setItem('darkMode', darkMode === '1' ? '0' : '1');
-    setDarkMode(darkMode === '1' ? '0' : '1');
-    toast.info('Not implemented yet')
+    store.dispatch(appUpdateDarkMode({
+      darkMode: !darkMode
+    }));
+    localStorage.setItem('darkMode', darkMode ? '0' : '1');
   }
 
 
 
   return (
 
-    <div className="App">
+      <div style={{background: darkMode ? 'black' : 'white', color: 'white'}}>
+        <ToastContainer />
+        <div className="App">
 
 
       <div className={"container mt-2"}>
           <img src={"docker_smiley_logo.png"} width={"150"} height={"150"}/>
       </div>
-
 
         <div className={"container border p-3"}>
 
@@ -77,15 +81,16 @@ function App() {
           <div className="form-check form-switch d-table">
             <input className="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault"
               onChange={e => handleToggleDarkMode(e)}
-              checked={darkMode === '1'}
+              checked={darkMode}
             />
             <label className="form-check-label float-left" htmlFor="flexSwitchCheckDefault">dark mode</label>
           </div>
           <pre>{message}</pre>
 
         </div>
-
     </div>
+      </div>
+
   );
 }
 
